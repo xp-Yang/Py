@@ -1,11 +1,11 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
-import Plot
 import ExcelLoader
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sys
+import backtesting as bt
 
 class Logger:
     def __init__(self, textbox):
@@ -26,8 +26,8 @@ class Application:
         self.app.title("Trade")
 
         # 创建选择文件按钮
-        self.button = ttk.Button(self.app, text="选择文件", command=self.open_file_dialog)
-        self.button.pack()
+        button = ttk.Button(self.app, text="选择文件", command=self.open_file_dialog)
+        button.pack()
 
         # 创建Frame用以布局
         content_frame = ttk.Frame(self.app)
@@ -41,33 +41,40 @@ class Application:
 
         # 创建step控件
             # 创建Label
-        self.step_text_label = tk.Label(content_left_frame, text="Step:")
-        self.step_text_label.pack(side="top", anchor='nw')
+        step_text_label = tk.Label(content_left_frame, text="Step:")
+        step_text_label.pack(side="top", anchor='nw')
             # 创建Spinbox
         self.step = 1
         self.step_spinbox_value = tk.IntVar(value = self.step)
-        self.step_spinbox = ttk.Spinbox(content_left_frame, from_=0, to=100, increment = 1, textvariable=self.step_spinbox_value, command=self.step_spinbox_cb)
-        self.step_spinbox.pack(side="top", anchor='nw')
+        step_spinbox = ttk.Spinbox(content_left_frame, from_=0, to=100, increment = 1, textvariable=self.step_spinbox_value, command=self.step_spinbox_cb)
+        step_spinbox.pack(side="top", anchor='nw')
 
         # 创建increase_threshold控件
             # 创建Label
-        self.increase_text_label = tk.Label(content_left_frame, text="涨幅阈值:")
-        self.increase_text_label.pack(side="top", anchor='nw')
+        increase_text_label = tk.Label(content_left_frame, text="涨幅阈值:")
+        increase_text_label.pack(side="top", anchor='nw')
             # 创建Spinbox
         self.increase_threshold = 0.01
         self.increase_spinbox_value = tk.DoubleVar(value = self.increase_threshold)
-        self.increase_spinbox = ttk.Spinbox(content_left_frame, from_=0, to=1, increment = 0.01, textvariable=self.increase_spinbox_value, command=self.increase_spinbox_cb)
-        self.increase_spinbox.pack(side="top", anchor='nw')
+        increase_spinbox = ttk.Spinbox(content_left_frame, from_=0, to=1, increment = 0.001, textvariable=self.increase_spinbox_value, command=self.increase_spinbox_cb)
+        increase_spinbox.pack(side="top", anchor='nw')
+
+        # 创建ma滑动窗口slider控件
+            # Scale
+        self.window = 20
+        self.window_slider_value = tk.IntVar(value=self.window)
+        window_slider = tk.Scale(content_left_frame, from_=1, to=100, orient=tk.HORIZONTAL, variable=self.window_slider_value, command=self.window_slider_cb)
+        window_slider.pack()
 
         # 创建本金控件
             # 创建Label
-        self.capital_text_label = tk.Label(content_left_frame, text="本金:")
-        self.capital_text_label.pack(side="top", anchor='nw')
+        capital_text_label = tk.Label(content_left_frame, text="本金:")
+        capital_text_label.pack(side="top", anchor='nw')
             # 创建Spinbox
-        self.init_capital = 20000
+        self.init_capital = 200000
         self.capital_spinbox_value = tk.IntVar(value = self.init_capital)
-        self.capital_spinbox = ttk.Spinbox(content_left_frame, increment = 5000, textvariable=self.capital_spinbox_value, command=self.capital_spinbox_cb)
-        self.capital_spinbox.pack(side="top", anchor='nw')
+        capital_spinbox = ttk.Spinbox(content_left_frame, increment = 5000, textvariable=self.capital_spinbox_value, command=self.capital_spinbox_cb)
+        capital_spinbox.pack(side="top", anchor='nw')
 
         # 创建日志区域
             # 创建Label
@@ -80,27 +87,52 @@ class Application:
         sys.stdout = Logger(log)
 
         # 创建矩形区域并在矩形区域上绘制曲线
-        self.figure = plt.figure(figsize=(10, 8), dpi=100)
-        self.axes = self.figure.add_subplot(111)
-        self.canvas = FigureCanvasTkAgg(self.figure, master=content_right_frame)
+        figure = plt.figure(figsize=(10, 8), dpi=100)
+        self.axes = figure.add_subplot(111)
+        self.canvas = FigureCanvasTkAgg(figure, master=content_right_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        figure2 = plt.figure(figsize=(10, 8), dpi=100)
+        self.ma_axes = figure2.add_subplot(111)
+        self.ma_canvas = FigureCanvasTkAgg(figure2, master=content_right_frame)
+        self.ma_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
     def run(self):
         self.app.mainloop()
 
     def update(self):
         # update strategy outoput
-        self.buy_index_list = []
-        self.sell_index_list = []
         data = self.loader.get_data()
-        self.strategy(data.iloc[:, 1])
+
+        #res = bt.slope_in_directly_out(data.iloc[:, 1], self.init_capital, self.increase_threshold)
+        #res = bt.slope(data.iloc[:, 1], self.init_capital, self.increase_threshold, 0)
+        res = bt.SMA(data.iloc[:, 1], self.init_capital, self.window)
+
+        new_capital = res[0]
+        buy_index_list = res[1]
+        sell_index_list = res[2]
+
         # update canvas
         self.axes.clear()
-        self.axes.plot(data.iloc[:, 0], data.iloc[:, 1])
-        for i, value in enumerate(self.buy_index_list):
-            self.axes.plot(self.buy_index_list[i], data.iloc[:, 1][self.buy_index_list[i]], 'g.')
-            self.axes.plot(self.sell_index_list[i], data.iloc[:, 1][self.sell_index_list[i]], 'r.')
+        times = data.iloc[:, 0]
+        prices = data.iloc[:, 1]
+        self.axes.plot(times, prices)
+        self.axes.plot(times, res[3], '--')
+        buy_points_times = [times[x] for x in buy_index_list]
+        buy_points_prices = [prices[x] for x in buy_index_list]
+        self.axes.plot(buy_points_times, buy_points_prices, 'g.', markersize=3)
+        sell_points_times = [times[x] for x in sell_index_list]
+        sell_points_prices = [prices[x] for x in sell_index_list]
+        self.axes.plot(sell_points_times, sell_points_prices, 'r.', markersize=3)
         self.canvas.draw()
+
+        self.ma_axes.clear()
+        self.ma_axes.plot(times, res[3], '--')
+        self.ma_canvas.draw()
+
+        print("净收入：{}".format(new_capital - self.init_capital))
+        print("大盘：{}".format(prices[len(prices) - 1] - prices[0]))
+
 
     # 创建按钮点击事件
     def open_file_dialog(self):
@@ -122,35 +154,6 @@ class Application:
         self.init_capital = int(self.capital_spinbox_value.get())
         self.update()
 
-    def strategy(self, data):
-        capital = self.init_capital
-        interval = 8 # interval天后卖出
-        
-        k_dict = {}
-        k_filtered_dict = {}
-
-        k_dict = {i : (data[i] - data[i - self.step]) / data[i] for i in range(self.step, len(data))} # 差分斜率
-        k_filtered_dict = {i : k_dict[i] for i in k_dict if k_dict[i] > self.increase_threshold} # 符合条件的斜率
-
-        bought_index = []
-        for n in range(self.step, len(data)): 
-            need_sell = False
-            if (n - interval) > 0 and (n - interval) in bought_index:
-                need_sell = True
-            if need_sell:
-                capital += data[n]
-
-            need_buy = False
-            if (n + interval) < len(data) and n in k_filtered_dict:
-                need_buy = True
-            if need_buy:
-                if capital - data[n] > 0:
-                    capital -= data[n]
-                    bought_index.append(n)
-
-            print("第{}天，涨幅：{:.4f}，本金：{:.2f}，{} {}".format(n, k_dict[n], capital, "卖出" if need_sell else " ", "买入" if need_buy else ""))
-
-        print("净收入：", capital - self.init_capital)
-        
-        self.buy_index_list = bought_index
-        self.sell_index_list = [x + interval for x in bought_index]
+    def window_slider_cb(self, v):
+        self.window = int(self.window_slider_value.get())
+        self.update()
