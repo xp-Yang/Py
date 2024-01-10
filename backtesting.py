@@ -89,7 +89,7 @@ def SMA(data, init_capital, window = 20):
             ma.append(sum(data[i-window:i]) / window)
     
     capital = init_capital
-    cd_interval = 8 # interval天后才可卖出
+    cd_interval = 80 # interval天后才可卖出
 
     buy_index_list = []
     buying_index_list = []
