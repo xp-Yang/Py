@@ -1,11 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
-import ExcelLoader
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import threading
 import sys
 import backtesting as bt
+import ExcelLoader
 
 app = tk.Tk()
 
@@ -21,6 +22,7 @@ class Logger:
 
 class Application:
     def __init__(self):
+        self.plot_thread = None
         self.strategy_result = ()
         self.step = 3
         self.increase_threshold = 0.003
@@ -53,7 +55,7 @@ class Application:
             # 创建Spinbox
         self.step_spinbox_value = tk.IntVar(value = self.step)
         step_spinbox = ttk.Spinbox(content_left_frame, from_=0, to=100, increment = 1, textvariable=self.step_spinbox_value, command=self.step_spinbox_cb)
-        step_spinbox.pack(side="top", anchor='nw', padx=10)
+        step_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
 
         # 创建increase_threshold控件
             # 创建Label
@@ -62,7 +64,7 @@ class Application:
             # 创建Spinbox
         self.increase_spinbox_value = tk.DoubleVar(value = self.increase_threshold)
         increase_spinbox = ttk.Spinbox(content_left_frame, from_=0, to=1, increment = 0.001, textvariable=self.increase_spinbox_value, command=self.increase_spinbox_cb)
-        increase_spinbox.pack(side="top", anchor='nw', padx=10)
+        increase_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
 
         # 创建ma滑动窗口slider控件
                     # 创建Label
@@ -71,7 +73,7 @@ class Application:
             # 创建Spinbox
         self.window_spinbox_value = tk.IntVar(value=self.window)
         window_spinbox = ttk.Spinbox(content_left_frame, from_=1, to=999, increment = 1, textvariable=self.window_spinbox_value, command=self.window_spinbox_cb)
-        window_spinbox.pack(side="top", anchor='nw', padx=10)
+        window_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
 
         # 创建本金控件
             # 创建Label
@@ -80,7 +82,7 @@ class Application:
             # 创建Spinbox
         self.capital_spinbox_value = tk.IntVar(value = self.init_capital)
         capital_spinbox = ttk.Spinbox(content_left_frame, increment = 5000, textvariable=self.capital_spinbox_value, command=self.capital_spinbox_cb)
-        capital_spinbox.pack(side="top", anchor='nw', padx=10)
+        capital_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
 
         # 创建日志区域
             # 创建Label
@@ -89,20 +91,21 @@ class Application:
             # 创建log区域
         log = tk.Text(content_left_frame, width = 30, height = 10)
         log.pack(side="top", anchor='nw', fill=tk.BOTH, expand=True, padx=10)
+        log.config(width=50)
         # 重定向 print 输出到日志文本框
         sys.stdout = Logger(log)
 
         # 创建刷新图像按钮
-        refresh_button = ttk.Button(content_right_frame, text="刷新图像", command=self.update_canvas)
+        refresh_button = ttk.Button(content_right_frame, text="刷新图像", command=self.refresh_canvas)
         refresh_button.pack(side="top", anchor='ne')
 
         # 创建矩形区域并在矩形区域上绘制曲线
-        figure = plt.figure(figsize=(10, 8), dpi=100)
+        figure = plt.figure(figsize=(8, 6), dpi=100)
         self.axes = figure.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(figure, master=content_right_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-        #figure2 = plt.figure(figsize=(10, 8), dpi=100)
+        #figure2 = plt.figure(figsize=(8, 6), dpi=100)
         #self.ma_axes = figure2.add_subplot(111)
         #self.ma_canvas = FigureCanvasTkAgg(figure2, master=content_right_frame)
         #self.ma_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -126,6 +129,8 @@ class Application:
         print("库存价值：{}".format(stock_count * prices[len(prices)-1]))
         print("大盘指数：{:.3f}%".format(100 * (prices[len(prices)-1] - prices[0]) / prices[0]))
         print("收益率：{:.3f}%".format(100 * total_profit / self.init_capital))
+
+        self.refresh_canvas()
 
     def update_canvas(self):
         data = self.loader.get_data()
@@ -156,6 +161,8 @@ class Application:
         #self.ma_axes.plot(times, ma_prices, '--')
         #self.ma_canvas.draw()
 
+        print("plotting done")
+
 
     # 创建按钮点击事件
     def open_file_dialog(self):
@@ -180,3 +187,13 @@ class Application:
     def window_spinbox_cb(self):
         self.window = int(self.window_spinbox_value.get())
         self.update_strategy_output()
+
+    def refresh_canvas(self):
+        # 创建并启动线程
+        # 如果线程已经在运行，则忽略启动请求
+        if self.plot_thread and self.plot_thread.is_alive():
+            pass
+        else:
+            self.plot_thread = threading.Thread(target=self.update_canvas)
+            self.plot_thread.start()
+            print("start plot thread")
