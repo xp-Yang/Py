@@ -1,14 +1,17 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
+import matplotlib
+import matplotlib.style as plstyle
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import threading
 import sys
 import backtesting as bt
 import ExcelLoader
+import time
 
-app = tk.Tk()
+root = None
 
 class Logger:
     def __init__(self, textbox):
@@ -32,14 +35,17 @@ class Application:
         self.create()
 
     def create(self):
-        app.title("Trade")
+        global root
+
+        root = tk.Tk()
+        root.title("Trade")
 
         # 创建选择文件按钮
-        button = ttk.Button(app, text="选择文件", command=self.open_file_dialog)
+        button = ttk.Button(root, text="选择文件", command=self.open_file_dialog)
         button.pack()
 
         # 创建Frame用以布局
-        content_frame = ttk.Frame(app)
+        content_frame = ttk.Frame(root)
         content_frame.pack(fill=tk.BOTH, expand=True)
 
         content_left_frame = ttk.Frame(content_frame)
@@ -100,18 +106,17 @@ class Application:
         refresh_button.pack(side="top", anchor='ne')
 
         # 创建矩形区域并在矩形区域上绘制曲线
+        plstyle.use('fast')
+        matplotlib.use('Agg')
+        plt.ioff()
         figure = plt.figure(figsize=(8, 6), dpi=100)
         self.axes = figure.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(figure, master=content_right_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-        #figure2 = plt.figure(figsize=(8, 6), dpi=100)
-        #self.ma_axes = figure2.add_subplot(111)
-        #self.ma_canvas = FigureCanvasTkAgg(figure2, master=content_right_frame)
-        #self.ma_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-
     def run(self):
-        app.mainloop()
+        global root
+        root.mainloop()
 
     def update_strategy_output(self):
         data = self.loader.get_data()
@@ -133,6 +138,8 @@ class Application:
         self.refresh_canvas()
 
     def update_canvas(self):
+        start_time = time.perf_counter()
+
         data = self.loader.get_data()
         times = data.iloc[:, 0]
         prices = data.iloc[:, 1]
@@ -147,6 +154,8 @@ class Application:
 
         self.axes.clear()
 
+        self.axes.set_xticks([])
+        self.axes.set_xticklabels([])
         self.axes.plot(times, prices)
         self.axes.plot(times, ma_prices, '--')
         buy_points_times = [times[x] for x in buy_index_list]
@@ -157,11 +166,9 @@ class Application:
         self.axes.plot(sell_points_times, sell_points_prices, 'r.', markersize=3)
         self.canvas.draw()
 
-        #self.ma_axes.clear()
-        #self.ma_axes.plot(times, ma_prices, '--')
-        #self.ma_canvas.draw()
+        end_time = time.perf_counter()
 
-        print("plotting done")
+        print("plotting done, execution time: {:.3f} s".format(end_time - start_time))
 
 
     # 创建按钮点击事件
@@ -192,8 +199,12 @@ class Application:
         # 创建并启动线程
         # 如果线程已经在运行，则忽略启动请求
         if self.plot_thread and self.plot_thread.is_alive():
-            pass
+            print("is plotting!")
         else:
             self.plot_thread = threading.Thread(target=self.update_canvas)
             self.plot_thread.start()
             print("start plot thread")
+
+if __name__ == "__main__":
+    __app = Application()
+    __app.run()
