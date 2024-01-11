@@ -44,7 +44,7 @@ class Application:
         step_text_label = tk.Label(content_left_frame, text="Step:")
         step_text_label.pack(side="top", anchor='nw')
             # 创建Spinbox
-        self.step = 1
+        self.step = 3
         self.step_spinbox_value = tk.IntVar(value = self.step)
         step_spinbox = ttk.Spinbox(content_left_frame, from_=0, to=100, increment = 1, textvariable=self.step_spinbox_value, command=self.step_spinbox_cb)
         step_spinbox.pack(side="top", anchor='nw')
@@ -54,24 +54,27 @@ class Application:
         increase_text_label = tk.Label(content_left_frame, text="涨幅阈值:")
         increase_text_label.pack(side="top", anchor='nw')
             # 创建Spinbox
-        self.increase_threshold = 0.01
+        self.increase_threshold = 0.003
         self.increase_spinbox_value = tk.DoubleVar(value = self.increase_threshold)
         increase_spinbox = ttk.Spinbox(content_left_frame, from_=0, to=1, increment = 0.001, textvariable=self.increase_spinbox_value, command=self.increase_spinbox_cb)
         increase_spinbox.pack(side="top", anchor='nw')
 
         # 创建ma滑动窗口slider控件
-            # Scale
+                    # 创建Label
+        window_text_label = tk.Label(content_left_frame, text="MA滑动窗口:")
+        window_text_label.pack(side="top", anchor='nw')
+            # 创建Spinbox
         self.window = 20
-        self.window_slider_value = tk.IntVar(value=self.window)
-        window_slider = tk.Scale(content_left_frame, from_=1, to=100, orient=tk.HORIZONTAL, variable=self.window_slider_value, command=self.window_slider_cb)
-        window_slider.pack()
+        self.window_spinbox_value = tk.IntVar(value=self.window)
+        window_spinbox = ttk.Spinbox(content_left_frame, from_=1, to=999, increment = 1, textvariable=self.window_spinbox_value, command=self.window_spinbox_cb)
+        window_spinbox.pack(side="top", anchor='nw')
 
         # 创建本金控件
             # 创建Label
         capital_text_label = tk.Label(content_left_frame, text="本金:")
         capital_text_label.pack(side="top", anchor='nw')
             # 创建Spinbox
-        self.init_capital = 200000
+        self.init_capital = 10000000
         self.capital_spinbox_value = tk.IntVar(value = self.init_capital)
         capital_spinbox = ttk.Spinbox(content_left_frame, increment = 5000, textvariable=self.capital_spinbox_value, command=self.capital_spinbox_cb)
         capital_spinbox.pack(side="top", anchor='nw')
@@ -104,20 +107,22 @@ class Application:
         # update strategy outoput
         data = self.loader.get_data()
 
-        #res = bt.slope_in_directly_out(data.iloc[:, 1], self.init_capital, self.increase_threshold)
+        res = bt.slope_in_directly_out(data.iloc[:, 1], self.init_capital, self.increase_threshold, self.step)
         #res = bt.slope(data.iloc[:, 1], self.init_capital, self.increase_threshold, 0)
-        res = bt.SMA(data.iloc[:, 1], self.init_capital, self.window)
+        #res = bt.SMA(data.iloc[:, 1], self.init_capital, self.window)
 
         new_capital = res[0]
         buy_index_list = res[1]
         sell_index_list = res[2]
+        stock_count = res[3]
+        ma_prices = res[4] if len(res) >=5 else data.iloc[:, 1]
 
         # update canvas
         self.axes.clear()
         times = data.iloc[:, 0]
         prices = data.iloc[:, 1]
         self.axes.plot(times, prices)
-        self.axes.plot(times, res[3], '--')
+        self.axes.plot(times, ma_prices, '--')
         buy_points_times = [times[x] for x in buy_index_list]
         buy_points_prices = [prices[x] for x in buy_index_list]
         self.axes.plot(buy_points_times, buy_points_prices, 'g.', markersize=3)
@@ -127,11 +132,14 @@ class Application:
         self.canvas.draw()
 
         self.ma_axes.clear()
-        self.ma_axes.plot(times, res[3], '--')
+        self.ma_axes.plot(times, ma_prices, '--')
         self.ma_canvas.draw()
 
-        print("净收入：{}".format(new_capital - self.init_capital))
-        print("大盘：{}".format(prices[len(prices) - 1] - prices[0]))
+        total_profit = new_capital - self.init_capital + stock_count * prices[len(prices)-1]
+        print("净收入：{}".format(total_profit))
+        print("库存价值：{}".format(stock_count * prices[len(prices)-1]))
+        print("大盘指数：{:.3f}%".format(100 * (prices[len(prices)-1] - prices[0]) / prices[0]))
+        print("收益率：{:.3f}%".format(100 * total_profit / self.init_capital))
 
 
     # 创建按钮点击事件
@@ -154,6 +162,6 @@ class Application:
         self.init_capital = int(self.capital_spinbox_value.get())
         self.update()
 
-    def window_slider_cb(self, v):
-        self.window = int(self.window_slider_value.get())
+    def window_spinbox_cb(self):
+        self.window = int(self.window_spinbox_value.get())
         self.update()

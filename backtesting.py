@@ -1,20 +1,22 @@
+##要求输入的data：一个list，索引i代表第i天，data[i]代表第i天的收盘价
+##输出：本金剩余量，买入天数索引，卖出天数索引，还未卖出的库存数量，[ma list]
+
 charge_rate = 0.025 # 手续费
 
-def slope_in_directly_out(data, init_capital, buy_slope):
+def slope_in_directly_out(data, init_capital, buy_slope, buy_slope_span = 3):
     interval = 8 # interval天后卖出
-    step = 1 # 每天计算一次涨跌
     capital = init_capital
 
     k_dict = {}
     k_filtered_dict = {}
 
-    k_dict = {i : (data[i] - data[i - step]) / data[i] for i in range(step, len(data))} # 差分斜率
+    k_dict = {i : (data[i] - data[i - buy_slope_span]) / data[i] for i in range(buy_slope_span, len(data))} # 差分斜率
     k_filtered_dict = {i : k_dict[i] for i in k_dict if k_dict[i] > buy_slope} # 符合条件的斜率
 
-    bought_index = []
-    for n in range(step, len(data)): 
+    buy_index_list = []
+    for n in range(buy_slope_span, len(data)): 
         need_sell = False
-        if (n - interval) > 0 and (n - interval) in bought_index:
+        if (n - interval) > 0 and (n - interval) in buy_index_list:
             need_sell = True
         if need_sell:
             capital += data[n] * (1 - charge_rate)
@@ -25,16 +27,15 @@ def slope_in_directly_out(data, init_capital, buy_slope):
         if need_buy:
             if capital - data[n] > 0:
                 capital -= data[n]
-                bought_index.append(n)
+                buy_index_list.append(n)
 
-        print("第{}天，涨幅：{:.4f}，本金：{:.2f}，{} {}".format(n, k_dict[n], capital, "卖出" if need_sell else " ", "买入" if need_buy else ""))
+        #print("第{}天，涨幅：{:.4f}，本金：{:.2f}，{} {}".format(n, k_dict[n], capital, "卖出" if need_sell else " ", "买入" if need_buy else ""))
 
     print("净收入：", capital - init_capital)
 
-    buy_index_list = bought_index
-    sell_index_list = [x + interval for x in bought_index]
+    sell_index_list = [x + interval for x in buy_index_list]
 
-    return (capital, buy_index_list, sell_index_list)
+    return (capital, buy_index_list, sell_index_list, 0)
 
 def slope(data, init_capital, buy_slope, sell_slope):
     interval = 8 # interval天后卖出
@@ -70,12 +71,10 @@ def slope(data, init_capital, buy_slope, sell_slope):
 
         print("第{}天，涨幅：{:.4f}，本金：{:.2f}，{} {}".format(n, k_dict[n], capital, "卖出" if need_sell else " ", "买入" if need_buy else ""))
 
-    print("库存价值：{}".format(stock_count * data[len(data) - 1]))
-
     buy_index_list = bought_index
     sell_index_list = [x + interval for x in bought_index]
 
-    return (capital, buy_index_list, sell_index_list)
+    return (capital, buy_index_list, sell_index_list, stock_count)
 
 def EMA(data, init_capital, window = 20):
     pass
@@ -83,13 +82,13 @@ def EMA(data, init_capital, window = 20):
 def SMA(data, init_capital, window = 20):
     ma = []
     for i in range(len(data)):
-        if i < window:
-            ma.append(0)
+        if i < (window - 1):
+            ma.append(data[0])
         else:
-            ma.append(sum(data[i-window:i]) / window)
+            ma.append(sum(data[(i + 1 - window) : (i + 1)]) / window)
     
     capital = init_capital
-    cd_interval = 80 # interval天后才可卖出
+    cd_interval = 8 # interval天后才可卖出
 
     buy_index_list = []
     buying_index_list = []
@@ -110,5 +109,4 @@ def SMA(data, init_capital, window = 20):
                         capital += data[i] * (1 - charge_rate)
                         sell_index_list.append(i)
 
-    print("库存价值：{}".format(len(buying_index_list) * data[len(data) - 1]))
-    return (capital, buy_index_list, sell_index_list, ma)
+    return (capital, buy_index_list, sell_index_list, len(buying_index_list), ma)
