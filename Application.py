@@ -119,8 +119,8 @@ class Application:
         root.mainloop()
 
     def update_strategy_output(self):
-        data = self.loader.get_data()
-        prices = data.iloc[:, 1]
+        excel = self.loader.get_excel()
+        prices = excel.iloc[:, 1]
         #res = bt.slope_in_directly_out(prices, self.init_capital, self.increase_threshold, self.step)
         #res = bt.slope(prices, self.init_capital, self.increase_threshold, 0)
         res = bt.SMA(prices, self.init_capital, self.window)
@@ -140,9 +140,9 @@ class Application:
     def update_canvas(self):
         start_time = time.perf_counter()
 
-        data = self.loader.get_data()
-        times = data.iloc[:, 0]
-        prices = data.iloc[:, 1]
+        excel = self.loader.get_excel()
+        times = excel.iloc[:, 0]
+        prices = excel.iloc[:, 1]
 
         res = self.strategy_result
         if len(res) == 0:
