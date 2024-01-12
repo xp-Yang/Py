@@ -1,7 +1,15 @@
 ##要求输入的data：一个list，索引i代表第i天，data[i]代表第i天的收盘价
 ##输出：本金剩余量，买入天数索引，卖出天数索引，还未卖出的库存数量，[ma list]
 
+init_capital = 10000000
 charge_rate = 0.025 # 手续费
+strategy_types = ['slope', 'EMA', 'SMA']
+buy_slope = 0.001
+buy_slope_span = 3
+rolling_window = 20
+
+result = None
+
 
 def slope_in_directly_out(data, init_capital, buy_slope, buy_slope_span = 3):
     interval = 8 # interval天后卖出
@@ -110,3 +118,31 @@ def SMA(data, init_capital, window = 20):
                         sell_index_list.append(i)
 
     return (capital, buy_index_list, sell_index_list, len(buying_index_list), ma)
+
+
+def execute_strategy(data, strategy_type='SMA'):
+    if(strategy_type not in strategy_types):
+        print(strategy_type, " not in strategy_types")
+        return 0
+    
+    global init_capital
+    global rolling_window
+    global result
+
+    prices = data
+
+    #result = slope_in_directly_out(prices, self.init_capital, self.increase_threshold, self.step)
+    #result = slope(prices, self.init_capital, self.increase_threshold, 0)
+    result = SMA(prices, init_capital, rolling_window)
+
+    new_capital = result[0]
+    stock_count = result[3]
+
+    total_profit = new_capital - init_capital + stock_count * prices[len(prices)-1]
+    print("------------", "滑动窗口： ", rolling_window, "------------")
+    print("净收入：{}".format(total_profit))
+    print("库存价值：{}".format(stock_count * prices[len(prices)-1]))
+    print("大盘指数：{:.3f}%".format(100 * (prices[len(prices)-1] - prices[0]) / prices[0]))
+    print("收益率：{:.3f}%".format(100 * total_profit / init_capital))
+
+    return total_profit / init_capital
