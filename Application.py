@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import scrolledtext
 import matplotlib
 import matplotlib.style as plstyle
 import matplotlib.pyplot as plt
@@ -19,6 +20,7 @@ class Logger:
 
     def write(self, message):
         self.textbox.insert(tk.END, message)
+        self.textbox.see(tk.END)
 
     def flush(self):
         pass
@@ -29,7 +31,7 @@ class Application:
         self.strategy_result = ()
         self.step = 3
         self.increase_threshold = 0.003
-        self.window = 20
+        self.rolling_window = 20
         self.init_capital = 10000000
 
         self.create()
@@ -74,12 +76,12 @@ class Application:
 
         # 创建ma滑动窗口slider控件
                     # 创建Label
-        window_text_label = tk.Label(content_left_frame, text="MA滑动窗口:")
-        window_text_label.pack(side="top", anchor='nw', padx=10)
+        rolling_window_text_label = tk.Label(content_left_frame, text="MA滑动窗口:")
+        rolling_window_text_label.pack(side="top", anchor='nw', padx=10)
             # 创建Spinbox
-        self.window_spinbox_value = tk.IntVar(value=self.window)
-        window_spinbox = ttk.Spinbox(content_left_frame, from_=1, to=999, increment = 1, textvariable=self.window_spinbox_value, command=self.window_spinbox_cb)
-        window_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
+        self.rolling_window_spinbox_value = tk.IntVar(value=self.rolling_window)
+        rolling_window_spinbox = ttk.Spinbox(content_left_frame, from_=1, to=999, increment = 1, textvariable=self.rolling_window_spinbox_value, command=self.rolling_window_spinbox_cb)
+        rolling_window_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
 
         # 创建本金控件
             # 创建Label
@@ -95,7 +97,7 @@ class Application:
         log_label = tk.Label(content_left_frame, text="Log:")
         log_label.pack(side="top", anchor='nw', padx=10)
             # 创建log区域
-        log = tk.Text(content_left_frame, width = 30, height = 10)
+        log = scrolledtext.ScrolledText(content_left_frame, width = 30, height = 10)
         log.pack(side="top", anchor='nw', fill=tk.BOTH, expand=True, padx=10)
         log.config(width=50)
         # 重定向 print 输出到日志文本框
@@ -118,31 +120,36 @@ class Application:
         global root
         root.mainloop()
 
-    def update_strategy_output(self):
-        excel = self.loader.get_excel()
-        prices = excel.iloc[:, 1]
+    def update_strategy_output(self, refresh_cvs=True):
+        prices = self.loader.get_column(1)
         #res = bt.slope_in_directly_out(prices, self.init_capital, self.increase_threshold, self.step)
         #res = bt.slope(prices, self.init_capital, self.increase_threshold, 0)
-        res = bt.SMA(prices, self.init_capital, self.window)
+        res = bt.SMA(prices, self.init_capital, self.rolling_window)
         self.strategy_result = res
 
         new_capital = res[0]
         stock_count = res[3]
 
         total_profit = new_capital - self.init_capital + stock_count * prices[len(prices)-1]
+        print("------------", "滑动窗口： ", self.rolling_window, "------------")
         print("净收入：{}".format(total_profit))
         print("库存价值：{}".format(stock_count * prices[len(prices)-1]))
         print("大盘指数：{:.3f}%".format(100 * (prices[len(prices)-1] - prices[0]) / prices[0]))
         print("收益率：{:.3f}%".format(100 * total_profit / self.init_capital))
 
-        self.refresh_canvas()
+        if refresh_cvs:
+            self.refresh_canvas()
+
+        return total_profit / self.init_capital
 
     def update_canvas(self):
+        print("\nstart plotting")
+
         start_time = time.perf_counter()
 
-        excel = self.loader.get_excel()
-        times = excel.iloc[:, 0]
-        prices = excel.iloc[:, 1]
+        #times = self.loader.get_column(0)
+        prices = self.loader.get_column(1)
+        times = range(len(prices))
 
         res = self.strategy_result
         if len(res) == 0:
@@ -168,7 +175,7 @@ class Application:
 
         end_time = time.perf_counter()
 
-        print("plotting done, execution time: {:.3f} s".format(end_time - start_time))
+        print("plotting done, execution time: {:.3f} s\n".format(end_time - start_time))
 
 
     # 创建按钮点击事件
@@ -177,7 +184,8 @@ class Application:
         self.file_path = filedialog.askopenfilename()
         print("选择的文件:", self.file_path)
         self.loader = ExcelLoader.myExcelLoader(self.file_path)
-        self.update_strategy_output()
+        #self.update_strategy_output()
+        self.find_best_strategy_config()
 
     def step_spinbox_cb(self):
         self.step = int(self.step_spinbox_value.get())
@@ -191,8 +199,8 @@ class Application:
         self.init_capital = int(self.capital_spinbox_value.get())
         self.update_strategy_output()
 
-    def window_spinbox_cb(self):
-        self.window = int(self.window_spinbox_value.get())
+    def rolling_window_spinbox_cb(self):
+        self.rolling_window = int(self.rolling_window_spinbox_value.get())
         self.update_strategy_output()
 
     def refresh_canvas(self):
@@ -203,7 +211,32 @@ class Application:
         else:
             self.plot_thread = threading.Thread(target=self.update_canvas)
             self.plot_thread.start()
-            print("start plot thread")
+
+    def find_best_strategy_config(self):
+        # 创建并启动线程
+        # 如果线程已经在运行，则忽略启动请求
+        best_return_rate = 0
+        best_rolling_window = 0
+        for i in range(1, 101):
+            self.rolling_window = i
+            return_rate = self.update_strategy_output(False)
+            if return_rate > best_return_rate:
+                best_rolling_window = self.rolling_window
+                best_return_rate = return_rate
+        self.rolling_window = best_rolling_window
+        self.rolling_window_spinbox_value.set(self.rolling_window)
+        print("----------------------------------------")
+        print("最佳滑窗：{}, 最佳收益率：{:.3f}%".format(best_rolling_window, best_return_rate * 100))
+        print("----------------------------------------")
+        self.refresh_canvas()
+
+        #calc_thread = None
+        #if calc_thread and calc_thread.is_alive():
+        #    print("is calculating!")
+        #else:
+        #    calc_thread = threading.Thread(target=)
+        #    calc_thread.start()
+        #    print("start calculating")
 
 if __name__ == "__main__":
     __app = Application()

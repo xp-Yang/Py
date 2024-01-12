@@ -14,10 +14,11 @@ class myPlot:
         plt.title('')
         plt.show()
 
-start_time = time.perf_counter()
-loader = ExcelLoader.myExcelLoader('resource/蝴蝶刀_渐变之色 (崭新出厂)BUFF近1年-总览.xlsx')
-data = loader.get_data()
-my_plot = myPlot(data)
-my_plot.draw()
-end_time = time.perf_counter()
-print("plotting done, execution time: {:.3f} s".format(end_time - start_time))
+if __name__ == "__main__":
+    start_time = time.perf_counter()
+    loader = ExcelLoader.myExcelLoader('resource/蝴蝶刀_渐变之色 (崭新出厂)BUFF近1年-总览.xlsx')
+    data = loader.get_data()
+    my_plot = myPlot(data)
+    my_plot.draw()
+    end_time = time.perf_counter()
+    print("plotting done, execution time: {:.3f} s".format(end_time - start_time))
