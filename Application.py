@@ -27,7 +27,8 @@ class Application:
         bt.result = ()
         bt.buy_slope_span = 3
         bt.buy_slope = 0.003
-        bt.rolling_window = 20
+        bt.sma_period = 20
+        bt.ema_period = 20
         bt.init_capital = 10000000
 
         self.create()
@@ -72,12 +73,19 @@ class Application:
 
         # 创建ma滑动窗口slider控件
                     # 创建Label
-        rolling_window_text_label = tk.Label(content_left_frame, text="MA滑动窗口:")
-        rolling_window_text_label.pack(side="top", anchor='nw', padx=10)
+        sma_period_text_label = tk.Label(content_left_frame, text="SMA滑动窗口:")
+        sma_period_text_label.pack(side="top", anchor='nw', padx=10)
             # 创建Spinbox
-        self.rolling_window_spinbox_value = tk.IntVar(value=bt.rolling_window)
-        rolling_window_spinbox = ttk.Spinbox(content_left_frame, from_=1, to=999, increment = 1, textvariable=self.rolling_window_spinbox_value, command=self.update_strategy_config)
-        rolling_window_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
+        self.sma_period_spinbox_value = tk.IntVar(value=bt.sma_period)
+        sma_period_spinbox = ttk.Spinbox(content_left_frame, from_=1, to=999, increment = 1, textvariable=self.sma_period_spinbox_value, command=self.update_strategy_config)
+        sma_period_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
+
+        ema_period_text_label = tk.Label(content_left_frame, text="EMA滑动窗口:")
+        ema_period_text_label.pack(side="top", anchor='nw', padx=10)
+            # 创建Spinbox
+        self.ema_period_spinbox_value = tk.IntVar(value=bt.ema_period)
+        ema_period_spinbox = ttk.Spinbox(content_left_frame, from_=1, to=999, increment = 1, textvariable=self.ema_period_spinbox_value, command=self.update_strategy_config)
+        ema_period_spinbox.pack(side="top", anchor='nw', fill='x', padx=10)
 
         # 创建本金控件
             # 创建Label
@@ -116,15 +124,17 @@ class Application:
         bt.buy_slope_span = int(self.step_spinbox_value.get())
         bt.buy_slope = float(self.increase_spinbox_value.get())
         bt.init_capital = int(self.capital_spinbox_value.get())
-        bt.rolling_window = int(self.rolling_window_spinbox_value.get())
+        bt.sma_period = int(self.sma_period_spinbox_value.get())
+        bt.ema_period = int(self.ema_period_spinbox_value.get())
 
         prices = self.loader.get_column(1)
-        return_rate = bt.execute_strategy(prices, 'SMA')
+        sma_return_rate = bt.execute_strategy(prices, 'SMA')
+        ema_return_rate = bt.execute_strategy(prices, 'EMA')
 
         if refresh_cvs:
             self.refresh_canvas()
 
-        return return_rate
+        return (sma_return_rate, ema_return_rate)
 
     def update_canvas(self):
         #times = self.loader.get_column(0)
@@ -136,11 +146,11 @@ class Application:
 
         buy_index_list = bt.result[1]
         sell_index_list = bt.result[2]
-        ma_prices = bt.result[4] if len(bt.result) >=5 else prices
+        sma_prices = bt.result[4] if len(bt.result) >=5 else prices
 
         self.canvas.clear()
         self.canvas.draw_curve(times, prices, '-')
-        self.canvas.draw_curve(times, ma_prices, '--')
+        self.canvas.draw_curve(times, sma_prices, '--')
         buy_points_times = [times[x] for x in buy_index_list]
         buy_points_prices = [prices[x] for x in buy_index_list]
         self.canvas.draw_points(buy_points_times, buy_points_prices, 'g.')
@@ -167,20 +177,28 @@ class Application:
 
     def find_best_strategy_config(self):
         # TODO 创建新线程
-        best_return_rate = 0
-        best_rolling_window = 0
+        best_sma_return_rate = 0
+        best_ema_return_rate = 0        
+        best_sma_period = 0
+        best_ema_period = 0
         for i in range(1, 101):
-            self.rolling_window_spinbox_value.set(i)
-            return_rate = self.update_strategy_config(False)
-            if return_rate > best_return_rate:
-                best_rolling_window = bt.rolling_window
-                best_return_rate = return_rate
+            self.sma_period_spinbox_value.set(i)
+            sma_return_rate, ema_return_rate = self.update_strategy_config(False)
+            if sma_return_rate > best_sma_return_rate:
+                best_sma_period = bt.sma_period
+                best_sma_return_rate = sma_return_rate
+            if ema_return_rate > best_ema_return_rate:
+                best_ema_period = bt.ema_period
+                best_ema_return_rate = ema_return_rate                
 
-        self.rolling_window_spinbox_value.set(best_rolling_window)
-        bt.rolling_window = best_rolling_window
+        self.sma_period_spinbox_value.set(best_sma_period)
+        self.ema_period_spinbox_value.set(best_ema_period)
+        bt.sma_period = best_sma_period
+        bt.ema_period = best_ema_period
         
         print("----------------------------------------")
-        print("最佳滑窗：{}, 最佳收益率：{:.3f}%".format(best_rolling_window, best_return_rate * 100))
+        print("SMA最佳滑窗：{}, 最佳收益率：{:.3f}%".format(best_sma_period, best_sma_return_rate * 100))
+        print("EMA最佳滑窗：{}, 最佳收益率：{:.3f}%".format(best_ema_period, best_ema_return_rate * 100))
         print("----------------------------------------")
         self.update_strategy_config()
 

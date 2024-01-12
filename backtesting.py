@@ -6,7 +6,8 @@ charge_rate = 0.025 # 手续费
 strategy_types = ['slope', 'EMA', 'SMA']
 buy_slope = 0.001
 buy_slope_span = 3
-rolling_window = 20
+sma_period = 20
+ema_period = 20
 
 result = None
 
@@ -96,8 +97,10 @@ def calc_sma(data, window):
 def calc_sma_pd(data, rolling_window):
     return data.rolling(window=rolling_window).mean()
 
-def calc_ema(data, rolling_window):
-    pass
+def calc_ema_(data, rolling_window, n, multiplier):
+    if(n < 1):
+        return data[0]
+    return (multiplier * data[n] + (1 - multiplier) * calc_ema_(data, rolling_window, n - 1, multiplier))
 
 def EMA(data, init_capital, window = 20):
     multiplier = 2 / (window + 1)
@@ -161,21 +164,27 @@ def execute_strategy(data, strategy_type='SMA'):
         return 0
     
     global init_capital
-    global rolling_window
+    global sma_period
     global result
 
     prices = data
 
+    period = None
+    if strategy_type == 'SMA':
+        result = SMA(prices, init_capital, sma_period)
+        period = sma_period
+    if strategy_type == 'EMA':
+        result = EMA(prices, init_capital, ema_period)
+        period = ema_period
     #result = slope_in_directly_out(prices, self.init_capital, self.increase_threshold, self.step)
     #result = slope(prices, self.init_capital, self.increase_threshold, 0)
-    #result = SMA(prices, init_capital, rolling_window)
-    result = EMA(prices, init_capital, rolling_window)
+    
+    
 
     new_capital = result[0]
     stock_count = result[3]
-
     total_profit = new_capital - init_capital + stock_count * prices[len(prices)-1]
-    print("------------", "滑动窗口： ", rolling_window, "------------")
+    print("------------", strategy_type, "滑动窗口： ", period, "------------")
     print("净收入：{}".format(total_profit))
     print("库存价值：{}".format(stock_count * prices[len(prices)-1]))
     print("大盘指数：{:.3f}%".format(100 * (prices[len(prices)-1] - prices[0]) / prices[0]))
