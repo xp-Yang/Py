@@ -228,7 +228,7 @@ class Application:
         print("----------------------------------------")
         print("最佳滑窗：{}, 最佳收益率：{:.3f}%".format(best_rolling_window, best_return_rate * 100))
         print("----------------------------------------")
-        self.refresh_canvas()
+        self.update_strategy_output()
 
         #calc_thread = None
         #if calc_thread and calc_thread.is_alive():
