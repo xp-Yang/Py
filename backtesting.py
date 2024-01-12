@@ -84,16 +84,51 @@ def slope(data, init_capital, buy_slope, sell_slope):
 
     return (capital, buy_index_list, sell_index_list, stock_count)
 
-def EMA(data, init_capital, window = 20):
-    pass
-
-def SMA(data, init_capital, window = 20):
+def calc_sma(data, window):
     ma = []
     for i in range(len(data)):
         if i < (window - 1):
             ma.append(data[0])
         else:
             ma.append(sum(data[(i + 1 - window) : (i + 1)]) / window)
+    return ma
+
+def calc_sma_pd(data, rolling_window):
+    return data.rolling(window=rolling_window).mean()
+
+def calc_ema(data, rolling_window):
+    pass
+
+def EMA(data, init_capital, window = 20):
+    multiplier = 2 / (window + 1)
+    ma = data.ewm(alpha=multiplier, adjust=False).mean()
+
+    capital = init_capital
+    cd_interval = 8 # interval天后才可卖出
+
+    buy_index_list = []
+    buying_index_list = []
+    sell_index_list = []
+    for i in range(len(data)):
+        if i < window:
+            pass
+        else:
+            if data[i] > ma[i]:  # 当价格突破 MA 时买入
+                if capital - data[i] > 0:
+                    capital -= data[i]
+                    buy_index_list.append(i)
+                    buying_index_list.append(i)
+            elif data[i] < ma[i]:  # 当价格跌破 MA 时卖出
+                for index, bought_day in enumerate(buying_index_list):
+                    if (i - bought_day) > cd_interval:
+                        del buying_index_list[index]
+                        capital += data[i] * (1 - charge_rate)
+                        sell_index_list.append(i)
+
+    return (capital, buy_index_list, sell_index_list, len(buying_index_list), ma)
+
+def SMA(data, init_capital, window = 20):
+    ma = calc_sma(data, window)
     
     capital = init_capital
     cd_interval = 8 # interval天后才可卖出
@@ -105,12 +140,12 @@ def SMA(data, init_capital, window = 20):
         if i < window:
             pass
         else:
-            if data[i] > ma[i]:  # 当价格突破 MA_window 时买入
+            if data[i] > ma[i]:  # 当价格突破 MA 时买入
                 if capital - data[i] > 0:
                     capital -= data[i]
                     buy_index_list.append(i)
                     buying_index_list.append(i)
-            elif data[i] < ma[i]:  # 当价格跌破 MA_window 时卖出
+            elif data[i] < ma[i]:  # 当价格跌破 MA 时卖出
                 for index, bought_day in enumerate(buying_index_list):
                     if (i - bought_day) > cd_interval:
                         del buying_index_list[index]
@@ -133,7 +168,8 @@ def execute_strategy(data, strategy_type='SMA'):
 
     #result = slope_in_directly_out(prices, self.init_capital, self.increase_threshold, self.step)
     #result = slope(prices, self.init_capital, self.increase_threshold, 0)
-    result = SMA(prices, init_capital, rolling_window)
+    #result = SMA(prices, init_capital, rolling_window)
+    result = EMA(prices, init_capital, rolling_window)
 
     new_capital = result[0]
     stock_count = result[3]
