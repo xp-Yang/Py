@@ -24,7 +24,8 @@ class Logger:
 class Application:
     def __init__(self):
         self.plot_thread = None
-        bt.result = ()
+        bt.sma_result = ()
+        bt.ema_result = ()
         bt.buy_slope_span = 3
         bt.buy_slope = 0.003
         bt.sma_period = 20
@@ -141,16 +142,17 @@ class Application:
         prices = self.loader.get_column(1)
         times = range(len(prices))
 
-        if len(bt.result) == 0:
-            return
-
-        buy_index_list = bt.result[1]
-        sell_index_list = bt.result[2]
-        sma_prices = bt.result[4] if len(bt.result) >=5 else prices
+        buy_index_list = bt.sma_result[1]
+        sell_index_list = bt.sma_result[2]
+        sma_prices = bt.sma_result[4] if len(bt.sma_result) >=5 else prices
+        ema_prices = bt.ema_result[4] if len(bt.ema_result) >=5 else prices
 
         self.canvas.clear()
         self.canvas.draw_curve(times, prices, '-')
         self.canvas.draw_curve(times, sma_prices, '--')
+        self.canvas.draw_curve(times, ema_prices, '--')
+
+
         buy_points_times = [times[x] for x in buy_index_list]
         buy_points_prices = [prices[x] for x in buy_index_list]
         self.canvas.draw_points(buy_points_times, buy_points_prices, 'g.')

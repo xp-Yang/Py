@@ -9,8 +9,8 @@ buy_slope_span = 3
 sma_period = 20
 ema_period = 20
 
-result = None
-
+sma_result = None
+ema_result = None
 
 def slope_in_directly_out(data, init_capital, buy_slope, buy_slope_span = 3):
     interval = 8 # interval天后卖出
@@ -165,17 +165,22 @@ def execute_strategy(data, strategy_type='SMA'):
     
     global init_capital
     global sma_period
-    global result
+    global ema_period
+    global sma_result
+    global ema_result
 
     prices = data
 
     period = None
+    result = None
     if strategy_type == 'SMA':
-        result = SMA(prices, init_capital, sma_period)
+        sma_result = SMA(prices, init_capital, sma_period)
         period = sma_period
+        result = sma_result
     if strategy_type == 'EMA':
-        result = EMA(prices, init_capital, ema_period)
+        ema_result = EMA(prices, init_capital, ema_period)
         period = ema_period
+        result = ema_result
     #result = slope_in_directly_out(prices, self.init_capital, self.increase_threshold, self.step)
     #result = slope(prices, self.init_capital, self.increase_threshold, 0)
     
