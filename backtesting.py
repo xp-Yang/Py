@@ -1,16 +1,8 @@
+##回测算法合集，一个回测策略可能是多个回测算法的组合
 ##要求输入的data：一个list，索引i代表第i天，data[i]代表第i天的收盘价
-##输出：本金剩余量，买入天数索引，卖出天数索引，还未卖出的库存数量，[ma list]
+##输出：本金剩余量，还未卖出的库存数量，买入天数索引，卖出天数索引，[ma list]
 
-init_capital = 10000000
-charge_rate = 0.025 # 手续费
-strategy_types = ['slope', 'EMA', 'SMA']
-buy_slope = 0.001
-buy_slope_span = 3
-sma_period = 20
-ema_period = 20
-
-sma_result = None
-ema_result = None
+charge_rate = 0.025 #手续费
 
 def slope_in_directly_out(data, init_capital, buy_slope, buy_slope_span = 3):
     interval = 8 # interval天后卖出
@@ -44,9 +36,9 @@ def slope_in_directly_out(data, init_capital, buy_slope, buy_slope_span = 3):
 
     sell_index_list = [x + interval for x in buy_index_list]
 
-    return (capital, buy_index_list, sell_index_list, 0)
+    return (capital, 0, buy_index_list, sell_index_list, [])
 
-def slope(data, init_capital, buy_slope, sell_slope):
+def slope_in_slope_out(data, init_capital, buy_slope, sell_slope):
     interval = 8 # interval天后卖出
     step = 1 # 每天计算一次涨跌
     capital = init_capital
@@ -83,7 +75,7 @@ def slope(data, init_capital, buy_slope, sell_slope):
     buy_index_list = bought_index
     sell_index_list = [x + interval for x in bought_index]
 
-    return (capital, buy_index_list, sell_index_list, stock_count)
+    return (capital, stock_count, buy_index_list, sell_index_list, [])
 
 def calc_sma(data, window):
     ma = []
@@ -128,7 +120,8 @@ def EMA(data, init_capital, window = 20):
                         capital += data[i] * (1 - charge_rate)
                         sell_index_list.append(i)
 
-    return (capital, buy_index_list, sell_index_list, len(buying_index_list), ma)
+    stock_count = len(buying_index_list)
+    return (capital, stock_count, buy_index_list, sell_index_list, ma)
 
 def SMA(data, init_capital, window = 20):
     ma = calc_sma(data, window)
@@ -155,7 +148,8 @@ def SMA(data, init_capital, window = 20):
                         capital += data[i] * (1 - charge_rate)
                         sell_index_list.append(i)
 
-    return (capital, buy_index_list, sell_index_list, len(buying_index_list), ma)
+    stock_count = len(buying_index_list)
+    return (capital, stock_count, buy_index_list, sell_index_list, ma)
 
 
 def execute_strategy(data, strategy_type='SMA'):
@@ -163,12 +157,6 @@ def execute_strategy(data, strategy_type='SMA'):
         print(strategy_type, " not in strategy_types")
         return 0
     
-    global init_capital
-    global sma_period
-    global ema_period
-    global sma_result
-    global ema_result
-
     prices = data
 
     period = None
@@ -182,7 +170,7 @@ def execute_strategy(data, strategy_type='SMA'):
         period = ema_period
         result = ema_result
     #result = slope_in_directly_out(prices, self.init_capital, self.increase_threshold, self.step)
-    #result = slope(prices, self.init_capital, self.increase_threshold, 0)
+    #result = slope_in_slope_out(prices, self.init_capital, self.increase_threshold, 0)
     
     
 
