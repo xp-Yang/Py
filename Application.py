@@ -35,7 +35,7 @@ class Application:
         self.create()
 
     def init_strategy(self):
-        self.init_capital = 10000000
+        self.init_capital = 100000
         self.best_strategy = None
         self.sma_sttg = None
         self.ema_stth = None
@@ -208,6 +208,7 @@ class Application:
         print("----------------------------------------")
         print("SMA最佳滑窗：{}, 最佳收益率：{:.3f}%".format(sma_best_cfg.period, sma_best_return_rate * 100))
         print("EMA最佳滑窗：{}, 最佳收益率：{:.3f}%".format(ema_best_cfg.period, ema_best_return_rate * 100))
+        print("大盘指数：{:.3f}%".format(100 * (price_list[len(price_list)-1] - price_list[0]) / price_list[0]))
         print("----------------------------------------")
 
         self.notify_gui_update()

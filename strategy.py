@@ -51,10 +51,10 @@ class Strategy:
     def find_best_strategy_config(self):
         sttg_cfg = StrategyConfig()
         if self.type == StrategyType.SMA or self.type == StrategyType.EMA:
-            best_return_rate = 0
-            best_sttg_cfg = 0
+            best_return_rate = -1
+            best_sttg_cfg = None
             best_sttg_output = None
-            for i in range(1, 101):
+            for i in range(1, len(self.price_list)):
                 sttg_cfg.period = i
                 sttg_output = self.calc_strategy_result(sttg_cfg)
                 total_profit = sttg_output.capital - self.init_capital + sttg_output.stock_count * self.price_list[len(self.price_list)-1]
@@ -80,5 +80,4 @@ class Strategy:
             out = bt.SMA(self.price_list, self.init_capital, sttg_cfg.period)
         if self.type == StrategyType.EMA:
             out = bt.EMA(self.price_list, self.init_capital, sttg_cfg.period)
-        self.output = StrategyOutput(out[0], out[1], out[2], out[3], out[4])
-        return self.output
+        return StrategyOutput(out[0], out[1], out[2], out[3], out[4])
